@@ -6,15 +6,15 @@ namespace WinTail;
 
 public class FileObserver : IDisposable
 {
-    private readonly IActorRef _tailActor;
-
     private readonly string _absoluteFilePath;
-
-    private FileSystemWatcher _watcher;
 
     private readonly string _fileDir;
 
     private readonly string _fileNameOnly;
+
+    private readonly IActorRef _tailActor;
+
+    private FileSystemWatcher _watcher;
 
     public FileObserver(IActorRef tailActor, string absoluteFilePath)
     {
@@ -23,6 +23,12 @@ public class FileObserver : IDisposable
 
         _fileDir = Path.GetDirectoryName(absoluteFilePath);
         _fileNameOnly = Path.GetFileName(absoluteFilePath);
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _watcher.Dispose();
     }
 
     public void Start()
@@ -44,11 +50,5 @@ public class FileObserver : IDisposable
         };
 
         _watcher.EnableRaisingEvents = true;
-    }
-
-    /// <inheritdoc />
-    public void Dispose()
-    {
-        _watcher.Dispose();
     }
 }

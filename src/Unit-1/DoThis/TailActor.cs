@@ -44,6 +44,12 @@ public class TailActor : UntypedActor
                 if (!string.IsNullOrEmpty(text))
                 {
                     _reporterActor.Tell(text);
+                    // won't trigger father restart
+                    //Unhandled(new Exception("SupervisorStrategy test"));
+                    //Unhandled(null);
+
+                    // will trigger father SupervisorStrategy() send Directive.Restart
+                    //throw new Exception("who catch");
                 }
                 break;
             case FileError error:
