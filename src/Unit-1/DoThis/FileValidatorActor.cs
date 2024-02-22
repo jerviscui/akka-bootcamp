@@ -7,13 +7,10 @@ public class FileValidatorActor : UntypedActor
 {
     private readonly IActorRef _consoleWriterActor;
 
-    private readonly IActorRef _tailCoordinatorActor;
-
     /// <inheritdoc />
-    public FileValidatorActor(IActorRef consoleWriterActor, IActorRef tailCoordinatorActor)
+    public FileValidatorActor(IActorRef consoleWriterActor)
     {
         _consoleWriterActor = consoleWriterActor;
-        _tailCoordinatorActor = tailCoordinatorActor;
     }
 
     /// <inheritdoc />
@@ -36,7 +33,9 @@ public class FileValidatorActor : UntypedActor
             {
                 _consoleWriterActor.Tell(new Message.InputSuccess($"Starting processing for {str}"));
 
-                _tailCoordinatorActor.Tell(new TailCoordinatorActor.StartTail(str, _consoleWriterActor));
+                // start coordinator
+                Context.ActorSelection("akka://MyActorSystem/user/tailCoordinatorActor").Tell(
+                    new TailCoordinatorActor.StartTail(str, _consoleWriterActor));
             }
             else
             {
