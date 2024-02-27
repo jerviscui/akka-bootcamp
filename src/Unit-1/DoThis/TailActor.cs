@@ -11,19 +11,23 @@ public class TailActor : UntypedActor
 
     private readonly IActorRef _reporterActor;
 
-    private readonly FileObserver _observer;
+    private FileObserver _observer;
 
-    private readonly Stream _stream;
+    private Stream _stream;
 
-    private readonly StreamReader _reader;
+    private StreamReader _reader;
 
     /// <inheritdoc />
     public TailActor(IActorRef reporterActor, string filePath)
     {
         _filePath = filePath;
         _reporterActor = reporterActor;
+    }
 
-        var fullPath = Path.GetFullPath(filePath);
+    /// <inheritdoc />
+    protected override void PreStart()
+    {
+        var fullPath = Path.GetFullPath(_filePath);
         _observer = new FileObserver(Self, fullPath);
         _observer.Start();
 
@@ -32,6 +36,18 @@ public class TailActor : UntypedActor
 
         var text = _reader.ReadToEnd();
         Self.Tell(new InitialRead(_filePath, text));
+    }
+
+    /// <inheritdoc />
+    protected override void PostStop()
+    {
+        _observer.Dispose();
+        _observer = null;
+
+        _reader.Close();
+        _reader.Dispose();
+        _stream.Close();
+        _stream.Dispose();
     }
 
     /// <inheritdoc />
