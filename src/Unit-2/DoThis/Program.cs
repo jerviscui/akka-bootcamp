@@ -19,7 +19,17 @@ namespace ChartApp
         [STAThread]
         static void Main()
         {
+            var config = ConfigurationFactory.ParseString(@"
+akka.remote.helios.tcp {
+              transport-class =
+           ""Akka.Remote.Transport.Helios.HeliosTcpTransport, Akka.Remote""
+              transport-protocol = tcp
+              port = 8091
+              hostname = ""127.0.0.1""
+          }");
+
             ChartActors = ActorSystem.Create("ChartActors");
+
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
