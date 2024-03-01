@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms.DataVisualization.Charting;
 using Akka.Actor;
@@ -11,12 +12,6 @@ namespace ChartApp.Actors
 
         public class InitializeChart
         {
-            public InitializeChart(Dictionary<string, Series> initialSeries)
-            {
-                InitialSeries = initialSeries;
-            }
-
-            public Dictionary<string, Series> InitialSeries { get; private set; }
         }
 
         public class AddSeries
@@ -29,7 +24,21 @@ namespace ChartApp.Actors
             public Series Series { get; private set; }
         }
 
+        public class RemoveSeries
+        {
+            public RemoveSeries(string series)
+            {
+                Series = series;
+            }
+
+            public string Series { get; private set; }
+        }
+
         #endregion
+
+        public const int MaxPoints = 250;
+
+        private int xPosCounter = 0;
 
         private readonly Chart _chart;
         private Dictionary<string, Series> _seriesIndex;
@@ -45,20 +54,28 @@ namespace ChartApp.Actors
 
             Receive<InitializeChart>(HandleInitialize);
             Receive<AddSeries>(HandleAddSeries);
+            Receive<RemoveSeries>(HandleAddSeries);
+            Receive<Metric>(HandleMetrics);
         }
 
         #region Individual Message Type Handlers
 
         private void HandleInitialize(InitializeChart ic)
         {
-            if (ic.InitialSeries != null)
-            {
-                //swap the two series out
-                _seriesIndex = ic.InitialSeries;
-            }
+            //if (ic.InitialSeries != null)
+            //{
+            //    //swap the two series out
+            //    _seriesIndex = ic.InitialSeries;
+            //}
 
             //delete any existing series
             _chart.Series.Clear();
+
+            var area = _chart.ChartAreas[0];
+            area.AxisX.IntervalType = DateTimeIntervalType.Number;
+            area.AxisY.IntervalType = DateTimeIntervalType.Number;
+
+            SetChartBoundaries();
 
             //attempt to render the initial chart
             if (_seriesIndex.Any())
@@ -70,6 +87,27 @@ namespace ChartApp.Actors
                     _chart.Series.Add(series.Value);
                 }
             }
+
+            SetChartBoundaries();
+        }
+
+        private void SetChartBoundaries()
+        {
+            var dataPoints = _seriesIndex.Values.SelectMany(series => series.Points).ToList();
+            var yValues = dataPoints.SelectMany(point => point.YValues).ToList();
+            double maxAxisX = xPosCounter;
+            double minAxisX = xPosCounter - MaxPoints;
+            var maxAxisY = yValues.Count > 0 ? Math.Ceiling(yValues.Max()) : 1;
+            var minAxisY = yValues.Count > 0 ? Math.Floor(yValues.Min()) : 0;
+
+            if (dataPoints.Count > 2)
+            {
+                var area = _chart.ChartAreas[0];
+                area.AxisX.Minimum = minAxisX;
+                area.AxisX.Maximum = maxAxisX;
+                area.AxisY.Minimum = minAxisY;
+                area.AxisY.Maximum = maxAxisY;
+            }
         }
 
         private void HandleAddSeries(AddSeries series)
@@ -78,6 +116,35 @@ namespace ChartApp.Actors
             {
                 _seriesIndex.Add(series.Series.Name, series.Series);
                 _chart.Series.Add(series.Series);
+
+                SetChartBoundaries();
+            }
+        }
+
+        private void HandleAddSeries(RemoveSeries series)
+        {
+            if (!string.IsNullOrEmpty(series.Series) && _seriesIndex.ContainsKey(series.Series))
+            {
+                var remove = _seriesIndex[series.Series];
+                _seriesIndex.Remove(series.Series);
+                _chart.Series.Remove(remove);
+
+                SetChartBoundaries();
+            }
+        }
+
+        private void HandleMetrics(Metric metric)
+        {
+            if (!string.IsNullOrEmpty(metric.Series) && _seriesIndex.ContainsKey(metric.Series))
+            {
+                var series = _seriesIndex[metric.Series];
+                series.Points.AddXY(xPosCounter++, metric.CounterValue);
+                while (series.Points.Count > MaxPoints)
+                {
+                    series.Points.RemoveAt(0);
+                }
+
+                SetChartBoundaries();
             }
         }
 
