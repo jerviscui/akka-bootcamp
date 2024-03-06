@@ -29,7 +29,8 @@ namespace ChartApp
             var test = Program.ChartActors.ActorOf(Props.Create(() => new Test()));
             test.Tell(2);
 
-            _chartActor = Program.ChartActors.ActorOf(Props.Create(() => new ChartingActor(sysChart)), "charting");
+            _chartActor =
+                Program.ChartActors.ActorOf(Props.Create(() => new ChartingActor(sysChart, btnPause)), "charting");
             _chartActor.Tell(new ChartingActor.InitializeChart());
 
             _coordinatorActor = Program.ChartActors.ActorOf(Props.Create(() =>
@@ -60,6 +61,11 @@ namespace ChartApp
         }
 
         #endregion
+
+        private void btnPause_Click(object sender, EventArgs e)
+        {
+            _chartActor.Tell(new ChartingActor.TogglePause());
+        }
 
         private void btnCpu_Click(object sender, EventArgs e)
         {

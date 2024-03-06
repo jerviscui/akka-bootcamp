@@ -33,6 +33,7 @@
             System.Windows.Forms.DataVisualization.Charting.Series series1 = new System.Windows.Forms.DataVisualization.Charting.Series();
             
             this.sysChart = new System.Windows.Forms.DataVisualization.Charting.Chart();
+            btnPause = new System.Windows.Forms.Button();
             btnCpu = new System.Windows.Forms.Button();
             btnMem = new System.Windows.Forms.Button();
             btnDisk = new System.Windows.Forms.Button();
@@ -57,6 +58,16 @@
             this.sysChart.Size = new System.Drawing.Size(684, 446);
             this.sysChart.TabIndex = 0;
             this.sysChart.Text = "sysChart";
+            // 
+            // btnPause
+            // 
+            btnPause.Location = new System.Drawing.Point(580, 280);
+            btnPause.Name = "btnPause";
+            btnPause.Size = new System.Drawing.Size(90, 29);
+            btnPause.TabIndex = 1;
+            btnPause.Text = "PAUSE ||";
+            btnPause.UseVisualStyleBackColor = true;
+            btnPause.Click += btnPause_Click;
             // 
             // btnCpu
             // 
@@ -93,6 +104,7 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(684, 446);
+            Controls.Add(btnPause);
             Controls.Add(btnCpu);
             Controls.Add(btnMem);
             Controls.Add(btnDisk);
@@ -108,6 +120,7 @@
         #endregion
 
         private System.Windows.Forms.DataVisualization.Charting.Chart sysChart;
+        private System.Windows.Forms.Button btnPause;
         private System.Windows.Forms.Button btnCpu;
         private System.Windows.Forms.Button btnMem;
         private System.Windows.Forms.Button btnDisk;
