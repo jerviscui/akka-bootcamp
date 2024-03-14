@@ -12,17 +12,18 @@ namespace GithubActors.Actors
     {
         #region Messages
 
-        public class LaunchRepoResultsWindow
+        public const string Name = "mainform";
+
+        public const string Path = $"akka://GithubActors/user/{Name}";
+
+        public class ValidateRepo
         {
-            public LaunchRepoResultsWindow(RepoKey repo, IActorRef coordinator)
+            public ValidateRepo(string repoUri)
             {
-                Repo = repo;
-                Coordinator = coordinator;
+                RepoUri = repoUri;
             }
 
-            public RepoKey Repo { get; private set; }
-
-            public IActorRef Coordinator { get; private set; }
+            public string RepoUri { get; private set; }
         }
 
         #endregion
@@ -42,12 +43,13 @@ namespace GithubActors.Actors
         {
             Receive<ProcessRepo>(repo =>
             {
-                Context.ActorSelection(ActorPaths.GithubValidatorActor.Path).Tell(new GithubValidatorActor.ValidateRepo(repo.RepoUri));
+                Context.ActorSelection(GithubValidatorActor.Path)
+                    .Tell(new ValidateRepo(repo.RepoUri));
                 BecomeBusy(repo.RepoUri);
             });
 
             //launch the window
-            Receive<LaunchRepoResultsWindow>(window =>
+            Receive<GithubCommanderActor.LaunchRepoResultsWindow>(window =>
             {
                 var form = new RepoResultsForm(window.Coordinator, window.Repo);
                 form.Show();
@@ -73,11 +75,15 @@ namespace GithubActors.Actors
             Receive<GithubValidatorActor.RepoIsValid>(valid => BecomeReady("Valid!"));
             Receive<GithubValidatorActor.InvalidRepo>(invalid => BecomeReady(invalid.Reason, false));
             //yes
-            Receive<GithubCommanderActor.UnableToAcceptJob>(job => BecomeReady(string.Format("{0}/{1} is a valid repo, but system can't accept additional jobs", job.Repo.Owner, job.Repo.Repo), false));
+            Receive<GithubCoordinatorActor.UnableToAcceptJob>(job =>
+                BecomeReady(
+                    string.Format("{0}/{1} is a valid repo, but system can't accept additional jobs", job.Repo.Owner,
+                        job.Repo.Repo), false));
 
             //no
-            Receive<GithubCommanderActor.AbleToAcceptJob>(job => BecomeReady(string.Format("{0}/{1} is a valid repo - starting job!", job.Repo.Owner, job.Repo.Repo)));
-            Receive<LaunchRepoResultsWindow>(window => Stash.Stash());
+            Receive<GithubCoordinatorActor.AbleToAcceptJob>(job =>
+                BecomeReady(string.Format("{0}/{1} is a valid repo - starting job!", job.Repo.Owner, job.Repo.Repo)));
+            Receive<GithubCommanderActor.LaunchRepoResultsWindow>(window => Stash.Stash());
         }
 
         private void BecomeReady(string message, bool isValid = true)

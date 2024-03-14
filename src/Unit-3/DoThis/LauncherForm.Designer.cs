@@ -41,6 +41,7 @@
             this.tbRepoUrl.Name = "tbRepoUrl";
             this.tbRepoUrl.Size = new System.Drawing.Size(455, 24);
             this.tbRepoUrl.TabIndex = 0;
+            this.tbRepoUrl.Text = "https://github.com/jerviscui/akka-bootcamp";
             // 
             // lblRepo
             // 

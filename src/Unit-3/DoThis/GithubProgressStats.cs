@@ -29,11 +29,15 @@ namespace GithubActors
     /// </summary>
     public class GithubProgressStats
     {
-        public int ExpectedUsers { get; private set; }
-        public int UsersThusFar { get; private set; }
-        public int QueryFailures { get; private set; }
-        public DateTime StartTime { get; private set; }
-        public DateTime? EndTime { get; private set; }
+        public int ExpectedUsers { get; protected set; }
+
+        public int UsersThusFar { get; protected set; }
+
+        public int QueryFailures { get; protected set; }
+
+        public DateTime StartTime { get; protected set; }
+
+        public DateTime? EndTime { get; protected set; }
 
         public TimeSpan Elapsed
         {

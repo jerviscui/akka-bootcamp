@@ -13,29 +13,6 @@ namespace GithubActors.Actors
     {
         #region Message classes
 
-        public class QueryStarrers
-        {
-            public QueryStarrers(RepoKey key)
-            {
-                Key = key;
-            }
-
-            public RepoKey Key { get; private set; }
-        }
-
-        /// <summary>
-        /// Query an individual starrer
-        /// </summary>
-        public class QueryStarrer
-        {
-            public QueryStarrer(string login)
-            {
-                Login = login;
-            }
-
-            public string Login { get; private set; }
-        }
-
         public class StarredReposForUser
         {
             public StarredReposForUser(string login, IEnumerable<Repository> repos)
@@ -68,39 +45,31 @@ namespace GithubActors.Actors
         private void InitialReceives()
         {
             //query an individual starrer
-            Receive<RetryableQuery>(query => query.Query is QueryStarrer, query =>
+            ReceiveAsync<RetryableQuery>(query => query.Query is GithubCoordinatorActor.QueryStarrer, async query =>
             {
-                // ReSharper disable once PossibleNullReferenceException (we know from the previous IS statement that this is not null)
-                var starrer = (query.Query as QueryStarrer).Login;
+                var starrer = ((GithubCoordinatorActor.QueryStarrer)query.Query).Login;
                 try
                 {
-                    var getStarrer = _gitHubClient.Activity.Starring.GetAllForUser(starrer);
-
-                    //ewww
-                    getStarrer.Wait();
-                    var starredRepos = getStarrer.Result;
-                    Sender.Tell(new StarredReposForUser(starrer, starredRepos));
+                    var getStarrer = await _gitHubClient.Activity.Starring.GetAllForUser(starrer);
+                    Sender.Tell(new StarredReposForUser(starrer, getStarrer));
                 }
                 catch (Exception)
                 {
-                    //operation failed - let the parent know
                     Sender.Tell(query.NextTry());
                 }
             });
 
+            //1
             //query all starrers for a repository
-            Receive<RetryableQuery>(query => query.Query is QueryStarrers, query =>
+            ReceiveAsync<RetryableQuery>(query => query.Query is GithubCoordinatorActor.QueryStarrers, async query =>
             {
                 // ReSharper disable once PossibleNullReferenceException (we know from the previous IS statement that this is not null)
-                var starrers = (query.Query as QueryStarrers).Key;
+                var starrers = (query.Query as GithubCoordinatorActor.QueryStarrers).Key;
                 try
                 {
-                    var getStars = _gitHubClient.Activity.Starring.GetAllStargazers(starrers.Owner, starrers.Repo);
-
-                    //ewww
-                    getStars.Wait();
-                    var stars = getStars.Result;
-                    Sender.Tell(stars.ToArray());
+                    var getStars =
+                        await _gitHubClient.Activity.Starring.GetAllStargazers(starrers.Owner, starrers.Repo);
+                    Sender.Tell(getStars.ToArray());
                 }
                 catch (Exception)
                 {

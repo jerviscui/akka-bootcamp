@@ -28,7 +28,7 @@ namespace GithubActors.Actors
         private void InitialReceives()
         {
             //progress update
-            Receive<GithubProgressStats>(stats =>
+            Receive<GithubCoordinatorActor.WrapGithubProgressStats>(stats =>
             {
                 //time to start animating the progress bar
                 if (!_hasSetProgress && stats.ExpectedUsers > 0)
@@ -47,7 +47,7 @@ namespace GithubActors.Actors
             });
 
             //user update
-            Receive<IEnumerable<SimilarRepo>>(repos =>
+            Receive<IEnumerable<GithubCoordinatorActor.WrapSimilarRepo>>(repos =>
             {
                 foreach (var similarRepo in repos)
                 {

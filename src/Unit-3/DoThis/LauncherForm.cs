@@ -17,10 +17,12 @@ namespace GithubActors
         private void MainForm_Load(object sender, EventArgs e)
         {
             /* INITIALIZE ACTORS */
-            _mainFormActor = Program.GithubActors.ActorOf(Props.Create(() => new MainFormActor(lblIsValid)), ActorPaths.MainFormActor.Name);
-            Program.GithubActors.ActorOf(Props.Create(() => new GithubValidatorActor(GithubClientFactory.GetClient())), ActorPaths.GithubValidatorActor.Name);
+            _mainFormActor = Program.GithubActors.ActorOf(Props.Create(() => new MainFormActor(lblIsValid)),
+                MainFormActor.Name);
+            Program.GithubActors.ActorOf(Props.Create(() => new GithubValidatorActor(GithubClientFactory.GetClient())),
+                GithubValidatorActor.Name);
             Program.GithubActors.ActorOf(Props.Create(() => new GithubCommanderActor()),
-                ActorPaths.GithubCommanderActor.Name);
+                GithubCommanderActor.Name);
         }
 
         private void btnLaunch_Click(object sender, EventArgs e)

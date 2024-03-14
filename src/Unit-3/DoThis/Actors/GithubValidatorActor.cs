@@ -12,14 +12,18 @@ namespace GithubActors.Actors
     {
         #region Messages
 
-        public class ValidateRepo
+        public const string Name = "validator";
+
+        public const string Path = $"akka://GithubActors/user/{Name}";
+
+        public class CanAcceptJob
         {
-            public ValidateRepo(string repoUri)
+            public CanAcceptJob(RepoKey repo)
             {
-                RepoUri = repoUri;
+                Repo = repo;
             }
 
-            public string RepoUri { get; private set; }
+            public RepoKey Repo { get; private set; }
         }
 
         public class InvalidRepo
@@ -52,8 +56,8 @@ namespace GithubActors.Actors
              * and it's used internally inside Akka.NET for similar scenarios.
              */
             private RepoIsValid() { }
-            private static readonly RepoIsValid _instance = new RepoIsValid();
-            public static RepoIsValid Instance { get { return _instance; } }
+
+            public static RepoIsValid Instance { get; } = new();
         }
 
         #endregion
@@ -69,29 +73,33 @@ namespace GithubActors.Actors
         private void ReadyToValidate()
         {
             //Outright invalid URLs
-            Receive<ValidateRepo>(repo => string.IsNullOrEmpty(repo.RepoUri) || !Uri.IsWellFormedUriString(repo.RepoUri, UriKind.Absolute),
+            Receive<MainFormActor.ValidateRepo>(
+                repo => string.IsNullOrEmpty(repo.RepoUri) ||
+                    !Uri.IsWellFormedUriString(repo.RepoUri, UriKind.Absolute),
                 repo => Sender.Tell(new InvalidRepo(repo.RepoUri, "Not a valid absolute URI")));
 
             //Repos that at least have a valid absolute URL
-            Receive<ValidateRepo>(repo =>
+            Receive<MainFormActor.ValidateRepo>(repo =>
             {
                 var userOwner = SplitIntoOwnerAndRepo(repo.RepoUri);
                 //close over the sender in an instance variable
                 var sender = Sender;
-                _gitHubClient.Repository.Get(userOwner.Item1, userOwner.Item2).ContinueWith<object>(t =>
-                {
-                    //Rule #1 of async in Akka.NET - turn exceptions into messages your actor understands
-                    if (t.IsCanceled)
+                _gitHubClient.Repository.Get(userOwner.Item1, userOwner.Item2)
+                    .ContinueWith<object>(t =>
                     {
-                        return new InvalidRepo(repo.RepoUri, "Repo lookup timed out");
-                    }
-                    if (t.IsFaulted)
-                    {
-                        return new InvalidRepo(repo.RepoUri, t.Exception != null ? t.Exception.GetBaseException().Message : "Unknown Octokit error");
-                    }
+                        //Rule #1 of async in Akka.NET - turn exceptions into messages your actor understands
+                        if (t.IsCanceled)
+                        {
+                            return new InvalidRepo(repo.RepoUri, "Repo lookup timed out");
+                        }
+                        if (t.IsFaulted)
+                        {
+                            return new InvalidRepo(repo.RepoUri,
+                                t.Exception != null ? t.Exception.GetBaseException().Message : "Unknown Octokit error");
+                        }
 
-                    return t.Result;
-                }).PipeTo(Self, sender);
+                        return t.Result;
+                    }).PipeTo(Self, sender);
             });
 
             // something went wrong while querying github, sent to ourselves via PipeTo
@@ -102,17 +110,19 @@ namespace GithubActors.Actors
             Receive<Repository>(repository =>
             {
                 //ask the GithubCommander if we can accept this job
-                Context.ActorSelection(ActorPaths.GithubCommanderActor.Path).Tell(new GithubCommanderActor.CanAcceptJob(new RepoKey(repository.Owner.Login, repository.Name)));
+                Context.ActorSelection(GithubCommanderActor.Path).Tell(
+                    new CanAcceptJob(new RepoKey(repository.Owner.Login, repository.Name)));
             });
-
 
             /* REPO is valid, but can we process it at this time? */
 
             //yes
-            Receive<GithubCommanderActor.UnableToAcceptJob>(job => Context.ActorSelection(ActorPaths.MainFormActor.Path).Tell(job));
-            
+            Receive<GithubCoordinatorActor.UnableToAcceptJob>(job =>
+                Context.ActorSelection(MainFormActor.Path).Tell(job));
+
             //no
-            Receive<GithubCommanderActor.AbleToAcceptJob>(job => Context.ActorSelection(ActorPaths.MainFormActor.Path).Tell(job));
+            Receive<GithubCoordinatorActor.AbleToAcceptJob>(job =>
+                Context.ActorSelection(MainFormActor.Path).Tell(job));
         }
 
         public static Tuple<string, string> SplitIntoOwnerAndRepo(string repoUri)

@@ -9,15 +9,9 @@ namespace GithubActors.Actors
     {
         #region Messages
 
-        public class Authenticate
-        {
-            public Authenticate(string oAuthToken)
-            {
-                OAuthToken = oAuthToken;
-            }
+        public const string Name = "authenticator";
 
-            public string OAuthToken { get; private set; }
-        }
+        public const string Path = $"akka://GithubActors/user/{Name}";
 
         public class AuthenticationFailed { }
 
@@ -39,7 +33,7 @@ namespace GithubActors.Actors
 
         private void Unauthenticated()
         {
-            Receive<Authenticate>(auth =>
+            Receive<GithubAuth.Authenticate>(auth =>
             {
                 //need a client to test our credentials with
                 var client = GithubClientFactory.GetUnauthenticatedClient();
@@ -49,9 +43,13 @@ namespace GithubActors.Actors
                 client.User.Current().ContinueWith<object>(tr =>
                 {
                     if (tr.IsFaulted)
+                    {
                         return new AuthenticationFailed();
+                    }
                     if (tr.IsCanceled)
+                    {
                         return new AuthenticationCancelled();
+                    }
                     return new AuthenticationSuccess();
                 }).PipeTo(Self);
             });
