@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using Akka.Actor;
 using Akka.Routing;
 
@@ -76,7 +77,9 @@ namespace GithubActors.Actors
         private void BecomeAsking()
         {
             _canAcceptJobSender = Sender;
-            pendingJobReplies = 3; //the number of routees
+
+            // block, but ask the router for the number of routees. Avoids magic numbers.
+            pendingJobReplies = _coordinator.Ask<Routees>(new GetRoutees()).Result.Members.Count();
 
             Become(Asking);
         }
@@ -120,19 +123,11 @@ namespace GithubActors.Actors
 
         protected override void PreStart()
         {
-            var coor1 = Context.ActorOf(Props.Create(() => new GithubCoordinatorActor()),
-                GithubCoordinatorActor.Name + "1");
-            var coor2 = Context.ActorOf(Props.Create(() => new GithubCoordinatorActor()),
-                GithubCoordinatorActor.Name + "2");
-            var coor3 = Context.ActorOf(Props.Create(() => new GithubCoordinatorActor()),
-                GithubCoordinatorActor.Name + "3");
-
             // create a broadcast router who will ask all of them
             // if they're available for work
-            _coordinator = Context.ActorOf(Props.Empty.WithRouter(new BroadcastGroup(
-                coor1.Path.ToStringWithAddress(),
-                coor2.Path.ToStringWithAddress(),
-                coor3.Path.ToStringWithAddress())));
+            _coordinator = Context.ActorOf(
+                Props.Create(() => new GithubCoordinatorActor()).WithRouter(FromConfig.Instance),
+                GithubCoordinatorActor.Name);
 
             base.PreStart();
         }
