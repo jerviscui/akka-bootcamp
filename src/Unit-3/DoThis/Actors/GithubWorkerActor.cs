@@ -45,22 +45,25 @@ namespace GithubActors.Actors
         private void InitialReceives()
         {
             //query an individual starrer
-            ReceiveAsync<RetryableQuery>(query => query.Query is GithubCoordinatorActor.QueryStarrer, async query =>
+            // Use PipeTo deliver
+            Receive<RetryableQuery>(query => query.Query is GithubCoordinatorActor.QueryStarrer, query =>
             {
                 var starrer = ((GithubCoordinatorActor.QueryStarrer)query.Query).Login;
-                try
+
+                var sender = Sender;
+                _gitHubClient.Activity.Starring.GetAllForUser(starrer).ContinueWith<object>(task =>
                 {
-                    var getStarrer = await _gitHubClient.Activity.Starring.GetAllForUser(starrer);
-                    Sender.Tell(new StarredReposForUser(starrer, getStarrer));
-                }
-                catch (Exception)
-                {
-                    Sender.Tell(query.NextTry());
-                }
+                    if (task.IsFaulted || task.IsCanceled)
+                    {
+                        return query.NextTry();
+                    }
+
+                    return new StarredReposForUser(starrer, task.Result);
+                }).PipeTo(sender);
             });
 
-            //1
             //query all starrers for a repository
+            // Use async await
             ReceiveAsync<RetryableQuery>(query => query.Query is GithubCoordinatorActor.QueryStarrers, async query =>
             {
                 // ReSharper disable once PossibleNullReferenceException (we know from the previous IS statement that this is not null)
